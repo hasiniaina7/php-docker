@@ -1,37 +1,18 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
-set -x
+export DEBIAN_FRONTEND=noninteractive
 
-cat > /root/ondrej.pgp << EOF
------BEGIN PGP PUBLIC KEY BLOCK-----
-Version: SKS 1.1.6
-Comment: Hostname: keyserver.ubuntu.com
+# Detect Ubuntu codename (bionic/focal/jammy/noble...)
+. /etc/os-release
+CODENAME="${UBUNTU_CODENAME:-jammy}"
 
-mI0ESX35nAEEALKDCUDVXvmW9n+T/+3G1DnTpoWh9/1xNaz/RrUH6fQKhHr568F8hfnZP/2C
-GYVYkW9hxP9LVW9IDvzcmnhgIwK+ddeaPZqh3T/FM4OTA7Q78HSvR81mJpf2iMLm/Zvh89Zs
-mP2sIgZuARiaHo8lxoTSLtmKXsM3FsJVlusyewHfABEBAAG0H0xhdW5jaHBhZCBQUEEgZm9y
-IE9uZMWZZWogU3Vyw72ItgQTAQIAIAUCSX35nAIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheA
-AAoJEE9OoKrlJnpsQjYD/jW1NlIFAlT6EvF2xfVbkhERii9MapjaUsSso4XLCEmZdEGX54GQ
-01svXnrivwnd/kmhKvyxCqiNLDY/dOaK8MK//bDI6mqdKmG8XbP2vsdsxhifNC+GH/OwaDPv
-n1TyYB653kwyruCGFjEnCreZTcRUu2oBQyolORDl+BmF4DjL
-=R5tk
------END PGP PUBLIC KEY BLOCK-----
-EOF
+# Prereqs
+apt-get update
+apt-get install -y --no-install-recommends         ca-certificates         software-properties-common         gnupg         dirmngr         curl
 
-# install base requirements
-apt-get update &&\
-apt-get install --no-install-recommends --no-install-suggests -y \
-    ca-certificates\
-    curl \
-    git \
-    gnupg \
-    unzip \
-    zip &&\
-cat /root/ondrej.pgp | apt-key add &&\
-printf "deb [arch=amd64] http://ppa.launchpad.net/ondrej/php/ubuntu bionic main\n" \
-    >/etc/apt/sources.list.d/ondrej.list &&\
-rm -f /root/ondrej.pgp &&\
-apt-get update &&\
-apt-get -y --purge autoremove &&\
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/{man,doc}
+# Add Ondřej PHP PPA (using add-apt-repository handles keys on modern Ubuntu)
+add-apt-repository -y ppa:ondrej/php
+
+# Optionally other PPAs (apache2/nginx) can be added similarly in their respective Dockerfiles if needed
+apt-get update

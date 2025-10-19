@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
-set -x
+PHP_VER="${1:-8.2}"
+export DEBIAN_FRONTEND=noninteractive
 
-# Installs most common modules
-
-PHP_VER="${1}"
-
-# These modules are installed and enabled by default
 MODULES_DEFAULT="
     php${PHP_VER}-bcmath
     php${PHP_VER}-cli
     php${PHP_VER}-curl
+    php${PHP_VER}-fpm
     php${PHP_VER}-intl
     php${PHP_VER}-mbstring
     php${PHP_VER}-mysql
@@ -20,7 +17,6 @@ MODULES_DEFAULT="
     php${PHP_VER}-zip
 "
 
-# These modules must have their INI directories included via PHP_INI_SCAN_DIR
 MODULES_OPTIONAL="
     php${PHP_VER}-amqp
     php${PHP_VER}-apcu
@@ -41,27 +37,14 @@ MODULES_OPTIONAL="
     php${PHP_VER}-zmq
 "
 
-MODULES_LEGACY=""
+# Install base + optional (ignore failures for exotic modules not available on jammy)
+apt-get install -y --no-install-recommends ${MODULES_DEFAULT}
 
-# These modules not available on > PHP 7.4
-if [[ ${PHP_VER} == 7.4 ]]; then
-    MODULES_LEGACY="
-        php${PHP_VER}-apcu-bc
-        php${PHP_VER}-geoip
-        php${PHP_VER}-gnupg
-        php${PHP_VER}-json
-        php${PHP_VER}-radius
-        php${PHP_VER}-ssh2
-        php${PHP_VER}-stomp
-        php${PHP_VER}-uploadprogress
-    "
-fi
-
-apt-get update &&\
-apt-get install --no-install-recommends --no-install-suggests -y \
-    ${MODULES_DEFAULT} \
-    ${MODULES_OPTIONAL} \
-    ${MODULES_LEGACY} \
-    &&\
-apt-get -y --purge autoremove &&\
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/{man,doc}
+# Try optional ones individually to avoid the whole install failing if one is missing
+for pkg in ${MODULES_OPTIONAL}; do
+  if apt-cache show "$pkg" >/dev/null 2>&1; then
+    apt-get install -y --no-install-recommends "$pkg" || echo "Skipping optional module $pkg"
+  else
+    echo "Optional module $pkg not found in apt-cache, skipping"
+  fi
+done

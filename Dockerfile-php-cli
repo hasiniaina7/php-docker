@@ -1,43 +1,14 @@
-FROM jtreminio/phpenv:latest
-LABEL maintainer="Juan Treminio <jtreminio@gmail.com>"
+FROM ubuntu:22.04
 
+ARG PHP_VER=8.2
 ENV DEBIAN_FRONTEND=noninteractive
-ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-RUN update-alternatives --install /bin/sh sh /bin/bash 100
-
-RUN mkdir /docker_build
-
+# Bring in base packages & Ondřej PPA and PHP modules via helper scripts
 COPY ./files/base_packages.sh /docker_build/base_packages.sh
-RUN chmod +x /docker_build/base_packages.sh &&\
-    /docker_build/base_packages.sh
+COPY ./files/php/bin_install_modules.sh /docker_build/bin_install_modules.sh
+COPY ./files/php/bin_clean_directories.sh /docker_build/bin_clean_directories.sh
 
-ENV COMPOSER_HOME /.composer
-ARG PHP_VER_DOT
-ARG PHP_VER
-ENV PHP_VER=$PHP_VER
+RUN set -eux;         chmod +x /docker_build/base_packages.sh /docker_build/bin_install_modules.sh /docker_build/bin_clean_directories.sh;         /docker_build/base_packages.sh;         /docker_build/bin_install_modules.sh ${PHP_VER};         /docker_build/bin_clean_directories.sh ${PHP_VER};         rm -rf /var/lib/apt/lists/*
 
-COPY ./files/php/bin_* /docker_build/
-RUN chmod +x /docker_build/bin_* &&\
-    /docker_build/bin_install_modules.sh ${PHP_VER} &&\
-    /docker_build/bin_clean_directories.sh ${PHP_VER}
-
-RUN /docker_build/bin_install_composer.sh &&\
-    /docker_build/bin_rm_symlinked_ini.sh ${PHP_VER} cli &&\
-    /docker_build/bin_link_ini.sh ${PHP_VER} &&\
-    rm -rf /docker_build
-
-# Save INI file into non-versioned directory
-# This makes managing them across several different PHP versions easier
-COPY files/php/php.ini /etc/php/php.ini
-
-# Default sessions directory
-RUN install -d -m 0755 -o www-data -g www-data /var/lib/php/sessions
-
-# Xdebug CLI debugging
-COPY files/php/xdebug /usr/bin/xdebug
-RUN chmod +x /usr/bin/xdebug
-
-WORKDIR /etc/php/${PHP_VER}
-
-USER www-data
+# Default command for smoke tests
+CMD ["php","-v"]
