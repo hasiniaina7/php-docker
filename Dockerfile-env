@@ -1,6 +1,24 @@
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND=noninteractive         LANG=en_US.UTF-8         LC_ALL=en_US.UTF-8         TZ=UTC
+ENV DEBIAN_FRONTEND=noninteractive \
+	TZ=UTC \
+	LANG=C.UTF-8 \
+	LC_ALL=C.UTF-8
 
-# Base utilities + locales
-RUN set -eux;         apt-get update;         apt-get -y dist-upgrade;         apt-get install -y --no-install-recommends             ca-certificates             locales             tzdata             curl             wget             gnupg             dirmngr             software-properties-common             apt-transport-https;         echo "en_US.UTF-8 UTF-8" > /etc/locale.gen;         locale-gen;         update-locale LANG=en_US.UTF-8;         rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+	apt-get -y dist-upgrade && \
+	apt-get install -y --no-install-recommends \
+		ca-certificates \
+		locales \
+		tzdata \
+		curl \
+		wget \
+		gnupg2 \
+		lsb-release \
+		software-properties-common \
+		apt-transport-https && \
+	locale-gen en_US.UTF-8 && \
+	update-ca-certificates && \
+	apt-get autoclean && \
+	apt-get -y --purge autoremove && \
+	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/{man,doc}

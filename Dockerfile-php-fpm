@@ -1,18 +1,35 @@
+# PHP FPM 8.2 sur Ubuntu 22.04 avec PPA ondrej/php
 FROM ubuntu:22.04
 
 ARG PHP_VER=8.2
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive TZ=UTC LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-# Base + PPA + PHP modules (includes php-fpm)
-COPY ./files/base_packages.sh /docker_build/base_packages.sh
-COPY ./files/php/bin_install_modules.sh /docker_build/bin_install_modules.sh
-COPY ./files/php/bin_clean_directories.sh /docker_build/bin_clean_directories.sh
-COPY ./files/php/php.ini /docker_build/php.ini
-COPY ./files/php/fpm.conf /docker_build/fpm.conf
-COPY ./files/php/php-fpm /docker_build/php-fpm
+# Outils + ajout du PPA ondrej/php AVANT toute install PHP
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg2 \
+        lsb-release \
+        software-properties-common && \
+    add-apt-repository -y ppa:ondrej/php && \
+    apt-get update && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN set -eux;         chmod +x /docker_build/base_packages.sh /docker_build/bin_install_modules.sh /docker_build/bin_clean_directories.sh;         /docker_build/base_packages.sh;         /docker_build/bin_install_modules.sh ${PHP_VER};         /docker_build/bin_clean_directories.sh ${PHP_VER};         # put php.ini and fpm.conf in place if they exist in context
-    if [ -f /docker_build/php.ini ]; then cp /docker_build/php.ini /etc/php/${PHP_VER}/cli/php.ini || true; fi;         if [ -f /docker_build/php.ini ]; then cp /docker_build/php.ini /etc/php/${PHP_VER}/fpm/php.ini || true; fi;         if [ -f /docker_build/fpm.conf ]; then cp /docker_build/fpm.conf /etc/php/${PHP_VER}/fpm/php-fpm.conf || true; fi;         if [ -f /docker_build/php-fpm ]; then cp /docker_build/php-fpm /etc/init.d/php${PHP_VER}-fpm || true; fi;         rm -rf /var/lib/apt/lists/*
+# Espace de build + scripts
+RUN mkdir -p /docker_build
+COPY ./files/php/bin_* /docker_build/
+
+# Installer modules PHP via nos scripts (le PPA est déjà présent)
+RUN chmod +x /docker_build/bin_* && \
+    /docker_build/bin_install_modules.sh ${PHP_VER} && \
+    /docker_build/bin_clean_directories.sh ${PHP_VER}
+
+# Installer FPM lui-même (séparé pour la lisibilité)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends php${PHP_VER}-fpm && \
+    rm -rf /var/lib/apt/lists/*
 
 EXPOSE 9000
-CMD ["php-fpm8.2","-F"]
+STOPSIGNAL SIGQUIT
+CMD ["php-fpm8.2", "-F"]
