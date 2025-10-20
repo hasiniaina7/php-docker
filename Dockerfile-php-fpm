@@ -28,8 +28,9 @@ RUN chmod +x /docker_build/bin_* && \
 # Installer FPM lui-même (séparé pour la lisibilité)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends php${PHP_VER}-fpm && \
+    ln -sf /usr/sbin/php-fpm${PHP_VER} /usr/sbin/php-fpm && \
     rm -rf /var/lib/apt/lists/*
 
 EXPOSE 9000
 STOPSIGNAL SIGQUIT
-CMD ["php-fpm8.2", "-F"]
+CMD ["php-fpm${PHP_VER}", "-F"]
